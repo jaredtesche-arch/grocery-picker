@@ -1,0 +1,4 @@
+ourgroceries==1.6.0
+requests==2.34.2
+mcp==1.30.0
+python-dotenv==1.2.4

@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grocery Picker</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #fff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1dc;
+    --accent: #c8102e; --accent-ink: #fff; --sel: #fdecee; --ok: #2f7d32; --sale: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --panel: #201f1e; --ink: #eceae6; --muted: #9b9994; --line: #34322f;
+      --accent: #e0384f; --accent-ink: #fff; --sel: #3a1f24; --ok: #6cbf70; --sale: #f0a24a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px 16px 8px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 0 16px 120px; }
+  .row { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 12px 0; }
+  .row.skipped { opacity: .55; }
+  .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .name { font-weight: 600; font-size: 16px; flex: 1 1 160px; }
+  .qty { width: 56px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+  .q { flex: 1 1 200px; max-width: 280px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+  .cards { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .card { flex: 0 0 168px; border: 2px solid var(--line); border-radius: 10px; padding: 8px; cursor: pointer; background: var(--panel); text-align: left; color: inherit; font: inherit; }
+  .card:hover { border-color: var(--muted); }
+  .card.on { border-color: var(--accent); background: var(--sel); }
+  .card img { width: 100%; height: 96px; object-fit: contain; background: #fff; border-radius: 6px; }
+  .cn { font-size: 13px; font-weight: 600; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cb { font-size: 12px; color: var(--muted); }
+  .cp { font-weight: 700; margin-top: 4px; }
+  .cp s { color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 99px; margin: 4px 4px 0 0; border: 1px solid var(--line); }
+  .tag.sale { color: var(--sale); border-color: var(--sale); }
+  .tag.bought { color: var(--ok); border-color: var(--ok); }
+  .tag.out { color: var(--accent); border-color: var(--accent); }
+  .skip { flex: 0 0 90px; border: 2px dashed var(--line); border-radius: 10px; background: none; color: var(--muted); cursor: pointer; font: inherit; }
+  .skip.on { border-color: var(--muted); color: var(--ink); }
+  .err { color: var(--accent); font-size: 13px; }
+  footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 12px 16px; }
+  .bar { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .sum { flex: 1; color: var(--muted); }
+  .sum b { color: var(--ink); }
+  .go { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 12px 22px; font: 600 16px system-ui, sans-serif; cursor: pointer; }
+  .go:disabled { opacity: .5; cursor: default; }
+  .done { padding: 24px; margin-top: 20px; }
+  .done h2 { margin: 0 0 4px; font-size: 24px; display: flex; gap: 10px; align-items: center; }
+  .done h2 .tick { width: 32px; height: 32px; border-radius: 50%; background: var(--ok); color: var(--panel); display: inline-grid; place-items: center; font-size: 18px; }
+  .done h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 22px 0 8px; }
+  .done .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .done .pill { border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; font-size: 13px; }
+  .done .pill.x { text-decoration: line-through; color: var(--muted); }
+  .done .bad { color: var(--accent); }
+  .done .next { margin-top: 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; color: var(--muted); }
+  .done .next a { text-decoration: none; }
+  a { color: var(--accent); }
+  h2.sec { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 24px 0 4px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  h2.sec .q { text-transform: none; letter-spacing: 0; }
+  .mem { font-size: 13px; color: var(--muted); display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .chip { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 99px; padding: 4px 12px; font: 13px system-ui, sans-serif; cursor: pointer; }
+  .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  #shop .card { position: relative; }
+  #shop .card::after { content: "+"; position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 700 18px/26px system-ui, sans-serif; text-align: center; }
+  #shop .card.on::after { content: "\2713"; background: var(--ok); }
+  .rm { border: 0; background: none; color: var(--muted); cursor: pointer; font: 13px system-ui, sans-serif; text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Grocery Picker</h1>
+  <div class="sub" id="status">Loading your Superstore list and order history. The first run takes a minute.</div>
+</header>
+<main>
+  <h2 class="sec">Staples <input class="q" id="addStaple" type="search" placeholder="Add a staple, press Enter" aria-label="Add a staple"></h2>
+  <div id="staples"></div>
+  <h2 class="sec" id="listHead">From OurGroceries</h2>
+  <div id="list"></div>
+  <h2 class="sec">Need anything else? <input class="q" id="addExtra" type="search" placeholder="Search, press Enter" aria-label="Search for anything else"></h2>
+  <div class="chips" id="chips"></div>
+  <div class="cards" id="shop"><span class="sub">Loading your most-bought items...</span></div>
+  <div id="extra"></div>
+</main>
+<footer>
+  <div class="bar">
+    <div class="sum" id="sum"></div>
+    <button class="go" id="go" disabled>Build cart</button>
+  </div>
+</footer>
+<script>
+const state = []; // {item, qty, staple, options, selected (codes; several allowed), error, removed}
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money = v => v == null ? "" : "$" + Number(v).toFixed(2);
+
+function cardHtml(c, on) {
+  const tags = [];
+  if (c.bought) tags.push(`<span class="tag bought">bought ${c.bought}x</span>`);
+  if (c.sale) tags.push(`<span class="tag sale">sale${c.saleEnds ? " to " + c.saleEnds.slice(5) : ""}</span>`);
+  if (!c.inStock) tags.push(`<span class="tag out">out of stock</span>`);
+  if (c.stale) tags.push(`<span class="tag out">not found at this store now · last price</span>`);
+  return `<button class="card ${on ? "on" : ""}" data-code="${esc(c.code)}">
+    ${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy">` : ""}
+    <div class="cn">${esc(c.name)}</div>
+    <div class="cb">${esc([c.brand, c.size].filter(Boolean).join(" · "))}</div>
+    <div class="cp">${money(c.price)}${c.per && c.per !== "ea" ? "/" + esc(c.per) : ""}${c.was ? `<s>${money(c.was)}</s>` : ""}</div>
+    <div class="cb">${esc(c.unitPrice)}</div>
+    ${tags.join("")}
+  </button>`;
+}
+
+function renderRow(i) {
+  const s = state[i];
+  const el = document.querySelector(`[data-i="${i}"]`);
+  el.className = "row" + (s.selected.length ? "" : " skipped");
+  el.innerHTML = `
+    <div class="head">
+      <div class="name">${esc(s.item)}</div>
+      <input class="qty" type="number" min="1" max="24" value="${s.qty}" aria-label="Quantity">
+      <input class="q" type="search" placeholder="Search something else" aria-label="Search">
+      <label class="mem" title="Untick for a one-off: the pick goes in the cart but isn't saved for next time">
+        <input type="checkbox" ${s.remember === false ? "" : "checked"}> Remember
+      </label>
+      ${s.staple ? `<button class="rm">Remove staple</button>` : s.extra ? `<button class="rm">Remove</button>` : ""}
+    </div>
+    ${s.error ? `<div class="err">${esc(s.error)}</div>` : ""}
+    <div class="cards">
+      ${s.options.map(c => cardHtml(c, s.selected.includes(c.code))).join("")}
+      <button class="skip ${s.selected.length ? "" : "on"}">Skip</button>
+    </div>`;
+  $(".mem input", el).onchange = e => { s.remember = e.target.checked; };
+  $(".qty", el).onchange = e => {
+    s.qty = Math.max(1, parseInt(e.target.value) || 1); summary();
+    if (s.staple) saveStaples(); // a staple's quantity is its default from now on
+  };
+  if (s.staple || s.extra) $(".rm", el).onclick = () => {
+    Object.assign(s, { removed: true, selected: [] }); el.remove(); summary();
+    if (s.staple) saveStaples();
+  };
+  $(".q", el).onkeydown = async e => {
+    if (e.key !== "Enter" || !e.target.value.trim()) return;
+    const r = await fetch(`/search?item=${encodeURIComponent(s.item)}&q=${encodeURIComponent(e.target.value)}`).then(r => r.json());
+    // keep what's already picked so 'vegetable' can collect cucumber, then carrots, then...
+    const kept = s.options.filter(c => s.selected.includes(c.code));
+    Object.assign(s, { options: [...kept, ...r.options.filter(c => !s.selected.includes(c.code))], error: r.error });
+    renderRow(i); summary();
+  };
+  el.querySelectorAll(".card").forEach(b => b.onclick = () => {
+    const code = b.dataset.code;
+    s.selected = s.selected.includes(code) ? s.selected.filter(x => x !== code) : [...s.selected, code];
+    renderRow(i); summary();
+  });
+  $(".skip", el).onclick = () => { s.selected = []; renderRow(i); summary(); };
+}
+
+function addRow(s) {
+  const i = state.push(s) - 1;
+  $(s.staple ? "#staples" : s.extra ? "#extra" : "#list").insertAdjacentHTML("beforeend", `<div data-i="${i}"></div>`);
+  renderRow(i);
+}
+
+function saveStaples() {
+  const body = state.filter(s => s.staple && !s.removed).map(s => ({ item: s.item, qty: s.qty }));
+  fetch("/staples", { method: "POST", body: JSON.stringify(body) });
+}
+
+$("#addStaple").onkeydown = async e => {
+  const name = e.target.value.trim();
+  if (e.key !== "Enter" || !name) return;
+  if (state.some(s => !s.removed && s.item.toLowerCase() === name.toLowerCase())) { e.target.value = ""; return; }
+  e.target.disabled = true;
+  const r = await fetch(`/search?item=${encodeURIComponent(name)}&q=${encodeURIComponent(name)}`).then(r => r.json());
+  addRow({ item: name, qty: 1, staple: true, ...r });
+  saveStaples(); summary();
+  e.target.value = ""; e.target.disabled = false; e.target.focus();
+};
+
+// One-offs: on the cart this time, never on the staples or the OurGroceries list
+$("#addExtra").onkeydown = async e => {
+  const name = e.target.value.trim();
+  if (e.key !== "Enter" || !name) return;
+  e.target.disabled = true;
+  const r = await fetch(`/search?item=${encodeURIComponent(name)}&q=${encodeURIComponent(name)}`).then(r => r.json());
+  addRow({ item: name, qty: 1, extra: true, ...r });
+  summary();
+  e.target.value = ""; e.target.disabled = false; e.target.focus();
+};
+
+// My Shop: most-bought products, filtered by department. A tap adds a one-off row already
+// picked (Remember off: the pick is keyed by product name, no use next time); tapping a
+// card it added takes the row away again.
+let shop = [], dept = "All";
+
+function renderShop() {
+  const box = $("#shop"), x = box.scrollLeft;
+  const depts = [...new Set(shop.map(c => c.dept))].sort();
+  $("#chips").innerHTML = ["All", ...depts].map(d => `<button class="chip ${d === dept ? "on" : ""}">${esc(d)}</button>`).join("");
+  $("#chips").querySelectorAll(".chip").forEach(b => b.onclick = () => { dept = b.textContent; box.scrollLeft = 0; renderShop(); });
+  const picked = new Set(state.filter(s => !s.removed).flatMap(s => s.selected));
+  box.innerHTML = shop.filter(c => dept === "All" || c.dept === dept).map(c => cardHtml(c, picked.has(c.code))).join("");
+  box.scrollLeft = x;
+  box.querySelectorAll(".card").forEach(b => b.onclick = () => {
+    const c = shop.find(c => c.code === b.dataset.code);
+    const mine = state.findIndex(s => !s.removed && s.fromShop === c.code);
+    if (mine >= 0) { $(`[data-i="${mine}"] .rm`).click(); return; }
+    if (picked.has(c.code)) return; // already picked on a list row
+    addRow({ item: c.name, qty: 1, extra: true, fromShop: c.code, remember: false, options: [c], selected: [c.code] });
+    summary();
+  });
+}
+
+const cartTotal = () => state.filter(s => s.selected.length).reduce((t, s) =>
+  t + s.options.filter(c => s.selected.includes(c.code)).reduce((a, c) => a + (c.price || 0), 0) * s.qty, 0);
+
+function summary() {
+  if (shop.length) renderShop(); // keep the ticks on My Shop in step with the rows
+  const picked = state.filter(s => s.selected.length);
+  $("#sum").innerHTML = `<b>${picked.length}</b> of ${state.filter(s => !s.removed).length} picked · about <b>${money(cartTotal())}</b> before tax and fees`;
+  $("#go").disabled = !picked.length;
+}
+
+$("#go").onclick = async () => {
+  const go = $("#go");
+  go.disabled = true; go.textContent = "Adding to cart...";
+  const body = state.flatMap(s => s.options.filter(c => s.selected.includes(c.code)).map(c => ({
+    item: s.item, qty: s.qty, code: c.code, card: c, remember: s.remember !== false, ogId: s.ogId,
+  })));
+  try {
+    const r = await fetch("/build", { method: "POST", body: JSON.stringify(body) }).then(r => r.json());
+    if (r.noCart) {
+      go.disabled = false; go.textContent = "Build cart";
+      alert("Your last order is still open for edits, so there's no new cart to build into yet.\n\nTry again once the order locks (midnight after you order). Your picks here are kept.");
+      return;
+    }
+    const bad = r.results.filter(x => !x.ok);
+    const ok = r.results.length - bad.length;
+    const crossedIds = new Set(r.crossed.ids || []);
+    const listRows = state.filter(s => s.ogId);
+    const crossed = listRows.filter(s => crossedIds.has(s.ogId));
+    const left = listRows.filter(s => !crossedIds.has(s.ogId));
+    const pills = (rows, cls = "") => `<div class="pills">${rows.map(s => `<span class="pill ${cls}">${esc(s.item)}</span>`).join("")}</div>`;
+    $("#status").textContent = "";
+    $("footer").remove();
+    $("main").innerHTML = `<div class="row done">
+      <h2><span class="tick">&#10003;</span> Cart built</h2>
+      <div class="sub">${ok} product${ok === 1 ? "" : "s"} in your Superstore cart · about ${money(cartTotal())} before tax and fees</div>
+      ${bad.length ? `<h3>Didn't go in</h3>${bad.map(x => `<div class="bad">${esc(x.item)}: ${esc(x.error)}</div>`).join("")}` : ""}
+      ${!listRows.length ? "" : `<h3>OurGroceries</h3>`}
+      ${!listRows.length ? "" : r.crossed.error
+        ? `<div class="bad">Couldn't cross anything off: ${esc(r.crossed.error)}. Your list is unchanged.</div>`
+        : `${crossed.length ? `<div class="sub" style="margin-bottom:8px">Crossed off (${crossed.length})</div>${pills(crossed, "x")}` : `<div class="sub">Nothing crossed off.</div>`}
+           ${left.length ? `<div class="sub" style="margin:12px 0 8px">Still on your list (${left.length}), skipped or failed</div>${pills(left)}` : ""}`}
+      <div class="next">
+        <a class="go" href="${r.cartUrl}" target="_blank">Open Superstore</a>
+        <span>Or pick delivery and pay in the PC Express app. Picks are saved for next time.</span>
+      </div>
+    </div>`;
+  } catch (e) {
+    go.disabled = false; go.textContent = "Build cart";
+    alert("Building the cart failed: " + e);
+  }
+};
+
+fetch("/data").then(r => r.ok ? r.json() : Promise.reject(r.statusText)).then(items => {
+  items.forEach(addRow);
+  const onList = items.filter(s => !s.staple).length;
+  if (!onList) $("#listHead").remove(); // no OurGroceries, or an empty list
+  $("#status").textContent = `${items.length - onList} staples${onList ? ` and ${onList} items from your Superstore list` : ""}. Things you've bought before come first. Click to pick, click again to unpick; you can pick more than one. Anything left on Skip stays out of the cart. Picks are remembered for next time.`;
+  summary();
+  return fetch("/myshop").then(r => r.json()).then(r => {
+    shop = r;
+    if (shop.length) renderShop(); else $("#shop").innerHTML = `<span class="sub">No most-bought items found.</span>`;
+  }).catch(() => { $("#shop").innerHTML = `<span class="err">Couldn't load My Shop.</span>`; });
+}).catch(e => { $("#status").textContent = "Could not load the list: " + e + ". Check the terminal for the error."; });
+</script>
+</body>
+</html>

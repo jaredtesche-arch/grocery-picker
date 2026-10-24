@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+history.json
+picks.json
+staples.json
+settings.json
