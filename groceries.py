@@ -366,8 +366,15 @@ def build(selections):
     any failure keeps the item on the list. Staples have no ogId and are never touched."""
     if not ensure_cart():
         return {"results": [], "crossed": {"count": 0}, "noCart": True}
-    picks = load_json(PICKS)
-    results, learned, done, failed = [], {}, set(), set()
+    # Save picks before adding anything: a build that dies partway (2026-11-01) still
+    # comes back preselected on the next launch.
+    learned = {}
+    for s in selections:
+        if s.get("remember", True):
+            card = {k: v for k, v in s["card"].items() if k not in ("bought", "stale")}
+            learned.setdefault(key(s["item"]), []).append(card)
+    save_json(PICKS, {**load_json(PICKS), **learned})
+    results, done, failed = [], set(), set()
     # add_to_cart sets the quantity, so two rows picking the same product (alphagetti and
     # elphagetti, 2026-10-24) would leave only the last row's count. Add each product once, summed.
     totals, added = {}, set()
@@ -378,16 +385,11 @@ def build(selections):
             if s["code"] not in added:
                 api.add_to_cart(s["code"], totals[s["code"]])
                 added.add(s["code"])
-            card = {k: v for k, v in s["card"].items() if k not in ("bought", "stale")}
-            if s.get("remember", True):
-                learned.setdefault(key(s["item"]), []).append(card)
-            results.append({"item": f"{s['item']}: {card['name']}", "ok": True})
+            results.append({"item": f"{s['item']}: {s['card']['name']}", "ok": True})
             done.add(s.get("ogId"))
         except Exception as e:
             results.append({"item": f"{s['item']}: {s['card']['name']}", "ok": False, "error": str(e)[:200]})
             failed.add(s.get("ogId"))
-    picks.update(learned)
-    save_json(PICKS, picks)
     to_cross = done - failed - {None}
     try:
         cross_off(to_cross)
